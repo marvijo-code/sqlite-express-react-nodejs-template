@@ -3,6 +3,8 @@ import axios from "axios"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
+import { useNavigate } from "react-router-dom"
+import { useAuth } from "../context/AuthContext"
 import { Button } from "./ui/button"
 import { Input } from "./ui/input"
 import { Label } from "./ui/label"
@@ -14,6 +16,8 @@ const formSchema = z.object({
 })
 
 export function LoginForm() {
+  const navigate = useNavigate();
+  const { login } = useAuth();
   const [showToast, setShowToast] = useState(false)
   const [toastMessage, setToastMessage] = useState("")
   const [isError, setIsError] = useState(false)
@@ -28,6 +32,10 @@ export function LoginForm() {
       setToastMessage(response.data.message)
       setIsError(false)
       setShowToast(true)
+      login();
+      setTimeout(() => {
+        navigate('/dashboard');
+      }, 1000);
     } catch (error) {
       setToastMessage(error.response?.data?.error || "Login failed")
       setIsError(true)

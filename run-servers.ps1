@@ -1,18 +1,28 @@
-$backendJob = Start-Job -ScriptBlock {
-    Set-Location -Path "backend"
-    npm run dev
-}
-
-$frontendJob = Start-Job -ScriptBlock {
-    Set-Location -Path "frontend"
-    npm run dev
-}
-
+#!pwsh
 try {
     Write-Host "Starting servers... Press Ctrl+C to stop"
-    Receive-Job -Job $backendJob, $frontendJob -Wait
+    
+    # Change to script directory first
+    $scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path
+    Set-Location $scriptPath
+
+    # Start backend
+    Set-Location -Path "backend"
+    npm run dev &
+
+    # Start frontend
+    Set-Location -Path "../frontend"
+    npm run dev
 }
 finally {
-    Stop-Job -Job $backendJob, $frontendJob
-    Remove-Job -Job $backendJob, $frontendJob
+    if ($backendProcess) { 
+        Write-Host "Stopping backend..."
+        Stop-Process -Id $backendProcess.Id -Force -ErrorAction SilentlyContinue
+        Get-Process | Where-Object { $_.Name -eq 'node' -and $_.Path -like '*backend*' } | Stop-Process -Force
+    }
+    if ($frontendProcess) {
+        Write-Host "Stopping frontend..."
+        Stop-Process -Id $frontendProcess.Id -Force -ErrorAction SilentlyContinue
+    }
+    Write-Host "Servers stopped"
 }

@@ -1,8 +1,8 @@
-const express = require('express');
-const cors = require('cors');
-const bcrypt = require('bcrypt');
-const Database = require('better-sqlite3');
-const { body, validationResult } = require('express-validator');
+import express from 'express';
+import cors from 'cors';
+import bcrypt from 'bcrypt';
+import Database from 'better-sqlite3';
+import { body, validationResult } from 'express-validator';
 
 const app = express();
 const db = new Database('database.db');
@@ -27,9 +27,45 @@ db.exec(`
   );
 `);
 
+let server;
+
+// Cleanup function
+const cleanup = () => {
+  console.log('\nGracefully shutting down...');
+  
+  // Close the HTTP server first
+  if (server) {
+    server.close(() => {
+      console.log('HTTP server closed');
+      // Then close the database connection
+      if (db) {
+        console.log('Closing database connection...');
+        db.close();
+      }
+      process.exit(0);
+    });
+
+    // Force close after 3 seconds if graceful shutdown fails
+    setTimeout(() => {
+      console.log('Force closing...');
+      process.exit(1);
+    }, 3000);
+  } else {
+    if (db) {
+      db.close();
+    }
+    process.exit(0);
+  }
+};
+
+// Handle cleanup on various signals
+process.on('SIGINT', cleanup);
+process.on('SIGTERM', cleanup);
+process.on('SIGHUP', cleanup);
+
 // Create default user if it doesn't exist
 const createDefaultUser = async () => {
-  const hashedPassword = await bcrypt.hash('user', 10);
+  const hashedPassword = await bcrypt.hash('$user$', 10);
   try {
     db.prepare('INSERT INTO users (username, password) VALUES (?, ?)').run('user', hashedPassword);
   } catch (error) {
@@ -98,6 +134,6 @@ app.post('/api/signup', [
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
+server = app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
